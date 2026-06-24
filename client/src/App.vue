@@ -29,6 +29,7 @@
             Reports
           </router-link>
         </nav>
+        <ThemeToggle />
         <LanguageSwitcher />
         <ProfileMenu
           @show-profile-details="showProfileDetails = true"
@@ -67,6 +68,7 @@ import ProfileMenu from './components/ProfileMenu.vue'
 import ProfileDetailsModal from './components/ProfileDetailsModal.vue'
 import TasksModal from './components/TasksModal.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 
 export default {
   name: 'App',
@@ -75,7 +77,8 @@ export default {
     ProfileMenu,
     ProfileDetailsModal,
     TasksModal,
-    LanguageSwitcher
+    LanguageSwitcher,
+    ThemeToggle
   },
   setup() {
     const { currentUser } = useAuth()
@@ -165,6 +168,79 @@ export default {
 </script>
 
 <style>
+/* =====================================================================
+   CSS Custom Properties (Design Tokens)
+   Light values are set on :root; dark overrides on :root[data-theme="dark"].
+   All shared component styles below reference these variables so that
+   toggling the attribute on <html> flips the entire palette at once.
+   ===================================================================== */
+
+:root {
+  /* Backgrounds */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+
+  /* Borders */
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-tertiary: #334155;
+  --text-heading: #1e293b;
+
+  /* Accent (links, active nav, info badges) */
+  --accent: #2563eb;
+  --accent-subtle-bg: #eff6ff;
+
+  /* Shadows */
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --shadow-hover: rgba(0, 0, 0, 0.06);
+  --shadow-dropdown: rgba(0, 0, 0, 0.10);
+
+  /* Table row dividers use a slightly lighter tone than the border */
+  --border-row: #f1f5f9;
+
+  /* Focus ring glow (used on interactive controls like selects) */
+  --accent-glow: rgba(37, 99, 235, 0.15);
+  /* Danger tokens — used for error states and destructive UI (e.g. logout hover) */
+  --danger-subtle-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #991b1b;
+}
+
+/* Dark mode overrides — applied when useTheme sets data-theme="dark" on <html> */
+:root[data-theme="dark"] {
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-subtle: #334155;
+
+  --border-color: #334155;
+  --border-strong: #475569;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #cbd5e1;
+  --text-heading: #f1f5f9;
+
+  --accent: #60a5fa;
+  --accent-subtle-bg: #1e3a5f;
+
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --shadow-hover: rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: rgba(0, 0, 0, 0.5);
+
+  --border-row: #334155;
+
+  /* Focus ring glow and danger tokens — adjusted for dark surfaces */
+  --accent-glow: rgba(96, 165, 250, 0.2);
+  --danger-subtle-bg: #450a0a;
+  --danger-border: #7f1d1d;
+  --danger-text: #fca5a5;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -173,10 +249,12 @@ export default {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #f8fafc;
-  color: #1e293b;
+  background: var(--bg-app);
+  color: var(--text-heading);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Smooth transition when toggling themes */
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .app {
@@ -186,12 +264,14 @@ body {
 }
 
 .top-nav {
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px 0 var(--shadow-color);
   position: sticky;
   top: 0;
   z-index: 100;
+  /* Fade border and shadow with the rest of the theme on toggle */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-container {
@@ -208,6 +288,10 @@ body {
   margin-right: 1rem;
 }
 
+.nav-container > .theme-toggle-button {
+  margin-right: 1rem;
+}
+
 .nav-container > .language-switcher {
   margin-right: 1rem;
 }
@@ -221,16 +305,16 @@ body {
 .logo h1 {
   font-size: 1.375rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
 }
 
 .subtitle {
   font-size: 0.813rem;
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 400;
   padding-left: 0.75rem;
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid var(--border-color);
 }
 
 .nav-tabs {
@@ -240,7 +324,7 @@ body {
 
 .nav-tabs a {
   padding: 0.625rem 1.25rem;
-  color: #64748b;
+  color: var(--text-secondary);
   text-decoration: none;
   font-weight: 500;
   font-size: 0.938rem;
@@ -250,13 +334,13 @@ body {
 }
 
 .nav-tabs a:hover {
-  color: #0f172a;
-  background: #f1f5f9;
+  color: var(--text-primary);
+  background: var(--bg-subtle);
 }
 
 .nav-tabs a.active {
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--accent);
+  background: var(--accent-subtle-bg);
 }
 
 .nav-tabs a.active::after {
@@ -266,7 +350,7 @@ body {
   left: 0;
   right: 0;
   height: 2px;
-  background: #2563eb;
+  background: var(--accent);
 }
 
 .main-content {
@@ -284,13 +368,13 @@ body {
 .page-header h2 {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin-bottom: 0.375rem;
   letter-spacing: -0.025em;
 }
 
 .page-header p {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.938rem;
 }
 
@@ -302,20 +386,22 @@ body {
 }
 
 .stat-card {
-  background: white;
+  background: var(--bg-surface);
   padding: 1.25rem;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+  /* `all` covers background/color; explicitly list border-color and box-shadow
+     so they also fade smoothly during theme toggle */
+  transition: all 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 12px var(--shadow-hover);
 }
 
 .stat-label {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -326,7 +412,7 @@ body {
 .stat-value {
   font-size: 2.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
 }
 
@@ -343,15 +429,17 @@ body {
 }
 
 .stat-card.info .stat-value {
-  color: #2563eb;
+  color: var(--accent);
 }
 
 .card {
-  background: white;
+  background: var(--bg-surface);
   border-radius: 10px;
   padding: 1.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
   margin-bottom: 1.25rem;
+  /* Fade border with the rest of the theme on toggle */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-header {
@@ -360,13 +448,13 @@ body {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.875rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .card-title {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
 }
 
@@ -380,16 +468,16 @@ table {
 }
 
 thead {
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
 th {
   text-align: left;
   padding: 0.5rem 0.75rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-tertiary);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -397,8 +485,8 @@ th {
 
 td {
   padding: 0.5rem 0.75rem;
-  border-top: 1px solid #f1f5f9;
-  color: #334155;
+  border-top: 1px solid var(--border-row);
+  color: var(--text-tertiary);
   font-size: 0.875rem;
 }
 
@@ -407,7 +495,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--bg-subtle);
 }
 
 .badge {
@@ -420,6 +508,8 @@ tbody tr:hover {
   letter-spacing: 0.025em;
 }
 
+/* Status badges keep their semantic colors in both themes for clarity.
+   The shades chosen provide sufficient contrast on both light and dark surfaces. */
 .badge.success {
   background: #d1fae5;
   color: #065f46;
@@ -473,14 +563,14 @@ tbody tr:hover {
 .loading {
   text-align: center;
   padding: 3rem;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.938rem;
 }
 
 .error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--danger-subtle-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
   padding: 1rem;
   border-radius: 8px;
   margin: 1rem 0;
