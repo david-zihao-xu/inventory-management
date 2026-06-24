@@ -366,8 +366,11 @@ export default {
     })
 
     const orderHealthMetrics = computed(() => {
-      const totalOrders = allOrders.value.length
-      const totalValue = allOrders.value.reduce((sum, order) => sum + (order.total_value || 0), 0)
+      // Restock orders (source "restock") are internal purchase spend, not customer
+      // revenue, so exclude them from order-health revenue/count metrics.
+      const revenueOrders = allOrders.value.filter(o => o.source !== 'restock')
+      const totalOrders = revenueOrders.length
+      const totalValue = revenueOrders.reduce((sum, order) => sum + (order.total_value || 0), 0)
       const avgOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0
 
       // Calculate on-time delivery rate (delivered orders that arrived on or before expected date)
