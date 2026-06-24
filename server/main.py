@@ -321,12 +321,21 @@ def get_recent_transactions():
     return recent_transactions
 
 @app.get("/api/reports/quarterly")
-def get_quarterly_reports():
+def get_quarterly_reports(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None
+):
     """Get quarterly performance reports"""
+    # Apply the same global filters used across the app (mirrors /api/orders)
+    filtered_orders = apply_filters(orders, warehouse, category, status)
+    filtered_orders = filter_by_month(filtered_orders, month)
+
     # Calculate quarterly statistics from orders
     quarters = {}
 
-    for order in orders:
+    for order in filtered_orders:
         # Restock orders are internal purchase spend, not customer revenue.
         if order.get('source') == 'restock':
             continue
@@ -370,11 +379,20 @@ def get_quarterly_reports():
     return result
 
 @app.get("/api/reports/monthly-trends")
-def get_monthly_trends():
+def get_monthly_trends(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None
+):
     """Get month-over-month trends"""
+    # Apply the same global filters used across the app (mirrors /api/orders)
+    filtered_orders = apply_filters(orders, warehouse, category, status)
+    filtered_orders = filter_by_month(filtered_orders, month)
+
     months = {}
 
-    for order in orders:
+    for order in filtered_orders:
         # Restock orders are internal purchase spend, not customer revenue, and would
         # otherwise create a spurious month bucket with cost reported as revenue.
         if order.get('source') == 'restock':
