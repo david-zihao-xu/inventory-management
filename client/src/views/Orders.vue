@@ -56,7 +56,7 @@
                       {{ t('orders.itemsCount', { count: order.items.length }) }}
                     </summary>
                     <div class="items-dropdown">
-                      <div v-for="(item, idx) in order.items" :key="idx" class="item-entry">
+                      <div v-for="item in order.items" :key="item.sku" class="item-entry">
                         <span class="item-name">{{ translateProductName(item.name) }}</span>
                         <span class="item-meta">{{ t('orders.quantity') }}: {{ item.quantity }} @ {{ currencySymbol }}{{ item.unit_price }}</span>
                       </div>
@@ -75,7 +75,7 @@
 
       <div class="card">
         <div class="card-header">
-          <h3 class="card-title">{{ t('orders.allOrders') }} ({{ orders.length }})</h3>
+          <h3 class="card-title">{{ t('orders.allOrders') }} ({{ customerOrders.length }})</h3>
         </div>
         <div class="table-container">
           <table class="orders-table">
@@ -91,7 +91,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in orders" :key="order.id">
+              <tr v-for="order in customerOrders" :key="order.id">
                 <td class="col-order-number"><strong>{{ order.order_number }}</strong></td>
                 <td class="col-customer">{{ translateCustomerName(order.customer) }}</td>
                 <td class="col-items">
@@ -184,6 +184,12 @@ export default {
       orders.value.filter(o => o.status === 'Submitted')
     )
 
+    // Exclude submitted restock orders from the customer-facing All Orders table
+    // so each order appears exactly once (restock orders appear only in Submitted Orders card)
+    const customerOrders = computed(() =>
+      orders.value.filter(o => o.status !== 'Submitted')
+    )
+
     // Fallback lead-time calculation when lead_time_days is absent on an order
     const leadTimeFallback = (order) => {
       const start = new Date(order.order_date)
@@ -222,6 +228,7 @@ export default {
       error,
       orders,
       submittedOrders,
+      customerOrders,
       leadTimeFallback,
       getOrdersByStatus,
       getOrderStatusClass,

@@ -163,3 +163,64 @@ class TestCreateOrderEndpoint:
             json={"items": [{"sku": "WDG-001"}]},
         )
         assert response.status_code == 422
+
+    def test_order_number_uses_current_year(self, client):
+        """The restock order_number must reflect the actual current year, not a hardcoded one."""
+        from datetime import datetime
+
+        payload = {
+            "items": [
+                {"sku": "WDG-001", "name": "Industrial Widget Type A",
+                 "quantity": 1, "unit_price": 45.0},
+            ]
+        }
+        order = client.post("/api/orders", json=payload).json()
+        # order_date and order_number must agree on the year
+        order_year = datetime.fromisoformat(order["order_date"]).year
+        assert order["order_number"].startswith(f"RST-{order_year}-")
+
+
+class TestRestockRevenueExclusion:
+    """Restock orders are internal purchase spend and must not be counted as revenue."""
+
+    def _place_restock_order(self, client):
+        """Place a restock order and return its total_value (the restock cost)."""
+        payload = {
+            "items": [
+                {"sku": "WDG-001", "name": "Industrial Widget Type A",
+                 "quantity": 100, "unit_price": 45.0},
+            ]
+        }
+        created = client.post("/api/orders", json=payload).json()
+        return created["total_value"]
+
+    def test_restock_excluded_from_dashboard_revenue(self, client):
+        """A placed restock order must not inflate dashboard total_orders_value (revenue)."""
+        before = client.get("/api/dashboard/summary").json()["total_orders_value"]
+        self._place_restock_order(client)
+        after = client.get("/api/dashboard/summary").json()["total_orders_value"]
+        # Revenue is unchanged: the restock cost is excluded.
+        assert abs(after - before) < 0.01
+
+    def test_restock_excluded_from_monthly_trends(self, client):
+        """A placed restock order must not add revenue or a spurious bucket to monthly-trends."""
+        before = client.get("/api/reports/monthly-trends").json()
+        before_revenue = sum(m["revenue"] for m in before)
+        before_months = {m["month"] for m in before}
+
+        self._place_restock_order(client)
+
+        after = client.get("/api/reports/monthly-trends").json()
+        after_revenue = sum(m["revenue"] for m in after)
+        after_months = {m["month"] for m in after}
+
+        # No revenue added and no new month bucket introduced by the restock order.
+        assert abs(after_revenue - before_revenue) < 0.01
+        assert after_months == before_months
+
+    def test_restock_excluded_from_quarterly_revenue(self, client):
+        """A placed restock order must not change quarterly total_revenue."""
+        before = {q["quarter"]: q["total_revenue"] for q in client.get("/api/reports/quarterly").json()}
+        self._place_restock_order(client)
+        after = {q["quarter"]: q["total_revenue"] for q in client.get("/api/reports/quarterly").json()}
+        assert after == before
