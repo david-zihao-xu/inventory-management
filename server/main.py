@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
@@ -80,6 +81,8 @@ class Order(BaseModel):
     actual_delivery: Optional[str] = None
     warehouse: Optional[str] = None
     category: Optional[str] = None
+    lead_time_days: Optional[int] = None
+    source: Optional[str] = None
 
 class DemandForecast(BaseModel):
     id: str
@@ -120,6 +123,28 @@ class CreatePurchaseOrderRequest(BaseModel):
     expected_delivery_date: str
     notes: Optional[str] = None
 
+class RestockCandidate(BaseModel):
+    item_sku: str
+    item_name: str
+    current_demand: int
+    forecasted_demand: int
+    gap: int
+    unit_cost: float
+    gap_cost: float
+    trend: str
+    period: str
+
+class OrderItemInput(BaseModel):
+    sku: str
+    name: str
+    quantity: int
+    unit_price: float
+
+class CreateOrderRequest(BaseModel):
+    items: List[OrderItemInput]
+    customer: Optional[str] = "Internal Restock"
+    lead_time_days: Optional[int] = 14
+
 # API endpoints
 @app.get("/")
 def root():
@@ -153,6 +178,39 @@ def get_orders(
     filtered_orders = filter_by_month(filtered_orders, month)
     return filtered_orders
 
+@app.post("/api/orders", response_model=Order, status_code=201)
+def create_order(request: CreateOrderRequest):
+    """Create a new order (e.g. a restocking order) and append it to the in-memory store.
+
+    Used by the Restocking tab to submit budget-based restock orders. Persistence is
+    in-memory only and resets when the server restarts (no database in this demo).
+    """
+    if not request.items:
+        raise HTTPException(status_code=400, detail="Order must contain at least one item")
+
+    now = datetime.now()
+    lead_time_days = request.lead_time_days if request.lead_time_days is not None else 14
+    expected_delivery = now + timedelta(days=lead_time_days)
+    total_value = round(sum(item.quantity * item.unit_price for item in request.items), 2)
+
+    new_order = {
+        "id": str(len(orders) + 1),
+        "order_number": f"RST-2025-{len(orders) + 1:04d}",
+        "customer": request.customer or "Internal Restock",
+        "items": [item.model_dump() for item in request.items],
+        "status": "Submitted",
+        "order_date": now.isoformat(timespec="seconds"),
+        "expected_delivery": expected_delivery.isoformat(timespec="seconds"),
+        "total_value": total_value,
+        "actual_delivery": None,
+        "warehouse": None,
+        "category": None,
+        "lead_time_days": lead_time_days,
+        "source": "restock"
+    }
+    orders.append(new_order)
+    return new_order
+
 @app.get("/api/orders/{order_id}", response_model=Order)
 def get_order(order_id: str):
     """Get a specific order"""
@@ -165,6 +223,35 @@ def get_order(order_id: str):
 def get_demand_forecasts():
     """Get demand forecasts"""
     return demand_forecasts
+
+@app.get("/api/restocking/candidates", response_model=List[RestockCandidate])
+def get_restocking_candidates():
+    """Get restock candidates derived from the demand forecast.
+
+    Each item with a positive demand gap (forecasted - current) is returned with its
+    unit cost and the cost to fully cover the gap, sorted by gap descending. The
+    frontend allocates a budget across these candidates (highest gap first).
+    """
+    candidates = []
+    for item in demand_forecasts:
+        gap = max(0, item.get("forecasted_demand", 0) - item.get("current_demand", 0))
+        if gap <= 0:
+            continue
+        unit_cost = item.get("unit_cost", 0)
+        candidates.append({
+            "item_sku": item["item_sku"],
+            "item_name": item["item_name"],
+            "current_demand": item["current_demand"],
+            "forecasted_demand": item["forecasted_demand"],
+            "gap": gap,
+            "unit_cost": unit_cost,
+            "gap_cost": round(gap * unit_cost, 2),
+            "trend": item["trend"],
+            "period": item["period"]
+        })
+
+    candidates.sort(key=lambda c: c["gap"], reverse=True)
+    return candidates
 
 @app.get("/api/backlog", response_model=List[BacklogItem])
 def get_backlog():
