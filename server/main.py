@@ -195,7 +195,7 @@ def create_order(request: CreateOrderRequest):
 
     new_order = {
         "id": str(len(orders) + 1),
-        "order_number": f"RST-2025-{len(orders) + 1:04d}",
+        "order_number": f"RST-{now.year}-{len(orders) + 1:04d}",
         "customer": request.customer or "Internal Restock",
         "items": [item.model_dump() for item in request.items],
         "status": "Submitted",
@@ -286,12 +286,18 @@ def get_dashboard_summary(
     pending_orders = len([order for order in filtered_orders if order["status"] in ["Processing", "Backordered"]])
     total_backlog_items = len(backlog_items)
 
+    # Restock orders (source == "restock") are internal purchase spend, not customer
+    # revenue, so exclude them from the orders-value (revenue) total.
+    total_orders_value = sum(
+        order["total_value"] for order in filtered_orders if order.get("source") != "restock"
+    )
+
     return {
         "total_inventory_value": round(total_inventory_value, 2),
         "low_stock_items": low_stock_items,
         "pending_orders": pending_orders,
         "total_backlog_items": total_backlog_items,
-        "total_orders_value": sum(order["total_value"] for order in filtered_orders)
+        "total_orders_value": total_orders_value
     }
 
 @app.get("/api/spending/summary")
@@ -321,6 +327,9 @@ def get_quarterly_reports():
     quarters = {}
 
     for order in orders:
+        # Restock orders are internal purchase spend, not customer revenue.
+        if order.get('source') == 'restock':
+            continue
         order_date = order.get('order_date', '')
         # Determine quarter
         if '2025-01' in order_date or '2025-02' in order_date or '2025-03' in order_date:
@@ -366,6 +375,10 @@ def get_monthly_trends():
     months = {}
 
     for order in orders:
+        # Restock orders are internal purchase spend, not customer revenue, and would
+        # otherwise create a spurious month bucket with cost reported as revenue.
+        if order.get('source') == 'restock':
+            continue
         order_date = order.get('order_date', '')
         if not order_date:
             continue
