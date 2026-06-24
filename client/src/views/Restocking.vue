@@ -106,7 +106,7 @@
         <div class="place-order-area">
           <button
             class="place-order-btn"
-            :disabled="submitting || recommendations.length === 0"
+            :disabled="submitting || recommendations.length === 0 || placedOrder !== null"
             @click="placeOrder"
           >
             {{ submitting ? t('restocking.placing') : t('restocking.placeOrder') }}
@@ -133,7 +133,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../api'
 import { useI18n } from '../composables/useI18n'
 
@@ -264,6 +264,12 @@ export default {
         submitting.value = false
       }
     }
+
+    // Clear the success panel when the user adjusts the budget so the button
+    // re-enables and a legitimately different order can be placed.
+    watch(budget, () => {
+      placedOrder.value = null
+    })
 
     onMounted(loadCandidates)
 
