@@ -159,7 +159,7 @@ export default {
 .filter-select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .reset-filters-btn {

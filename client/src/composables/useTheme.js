@@ -1,7 +1,16 @@
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
+
+// Determine the initial theme: prefer an explicit user choice stored in
+// localStorage; fall back to the OS-level prefers-color-scheme preference
+// so first-time visitors see the correct theme without any flash.
+const getInitialTheme = () => {
+  const saved = localStorage.getItem('app-theme')
+  if (saved) return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
 
 // Module-level ref so theme state is shared across all composable calls
-const currentTheme = ref(localStorage.getItem('app-theme') || 'light')
+const currentTheme = ref(getInitialTheme())
 
 // Apply the given theme to the document root so CSS variables take effect.
 // Called once at module load to restore the saved theme before first render,
@@ -24,7 +33,9 @@ export function useTheme() {
   }
 
   return {
-    currentTheme: computed(() => currentTheme.value),
+    // readonly() exposes the shared ref without an extra computed wrapper;
+    // consumers can read .value but cannot mutate it directly.
+    currentTheme: readonly(currentTheme),
     isDark,
     toggleTheme
   }

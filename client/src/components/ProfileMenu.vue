@@ -264,7 +264,7 @@ const handleLogout = () => {
 }
 
 .dropdown-item.logout:hover {
-  background: #fef2f2;
+  background: var(--danger-subtle-bg);
 }
 
 .task-badge {

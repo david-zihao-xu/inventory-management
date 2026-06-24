@@ -202,6 +202,13 @@ export default {
 
   /* Table row dividers use a slightly lighter tone than the border */
   --border-row: #f1f5f9;
+
+  /* Focus ring glow (used on interactive controls like selects) */
+  --accent-glow: rgba(37, 99, 235, 0.15);
+  /* Danger tokens — used for error states and destructive UI (e.g. logout hover) */
+  --danger-subtle-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #991b1b;
 }
 
 /* Dark mode overrides — applied when useTheme sets data-theme="dark" on <html> */
@@ -226,6 +233,12 @@ export default {
   --shadow-dropdown: rgba(0, 0, 0, 0.5);
 
   --border-row: #334155;
+
+  /* Focus ring glow and danger tokens — adjusted for dark surfaces */
+  --accent-glow: rgba(96, 165, 250, 0.2);
+  --danger-subtle-bg: #450a0a;
+  --danger-border: #7f1d1d;
+  --danger-text: #fca5a5;
 }
 
 * {
@@ -257,6 +270,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
+  /* Fade border and shadow with the rest of the theme on toggle */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-container {
@@ -375,7 +390,9 @@ body {
   padding: 1.25rem;
   border-radius: 10px;
   border: 1px solid var(--border-color);
-  transition: all 0.2s ease;
+  /* `all` covers background/color; explicitly list border-color and box-shadow
+     so they also fade smoothly during theme toggle */
+  transition: all 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
@@ -421,6 +438,8 @@ body {
   padding: 1.25rem;
   border: 1px solid var(--border-color);
   margin-bottom: 1.25rem;
+  /* Fade border with the rest of the theme on toggle */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-header {
@@ -549,9 +568,9 @@ tbody tr:hover {
 }
 
 .error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--danger-subtle-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
   padding: 1rem;
   border-radius: 8px;
   margin: 1rem 0;
